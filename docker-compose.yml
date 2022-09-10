@@ -1,0 +1,47 @@
+version: "3.1"
+services:
+  # Mariadb Database config
+  mariadb:
+    container_name: ${APP_NAME}-mariadb
+    image: mariadb:latest
+    ## expose the mariadb port to our machine so we can access it from any like TablePlus ##
+    ports:
+      - "5432:5432"
+    ## keep mysql data on localhost so we don't lose them ##
+    volumes:
+      - ./data/mariadb/pgdata:/var/lib/mariadb/data:Z
+    environment:
+      MARIADB_ROOT_DB: ${DB_DATABASE}
+      MARIADB_ROOT_USER: ${USER_DATABASE}
+      MARIADB_ROOT_PASSWORD: "secret"
+    networks:
+      - backend
+  # Web server Config
+  webserver:
+    image: nginx:alpine
+    container_name: ${APP_NAME}-nginx
+    volumes:
+      - .:/var/www
+      ## copy nginx configuration for our application ##
+      - ./deployment_conf/nginx/conf.d/:/etc/nginx/conf.d/:Z
+    ports:
+      ## run the webserver on port 8080 ##
+      - "6060:80"
+    networks:
+      - backend
+  # Application Database config
+  application:
+    container_name: ${APP_NAME}-application
+    ## read php image from our custom docker image ##
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - backend
+    env_file:
+      - .env
+    depends_on:
+      - mariadb
+networks:
+  backend:
+    driver: bridge
